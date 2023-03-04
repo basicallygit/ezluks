@@ -6,6 +6,10 @@ use std::fs::create_dir_all;
 
 const FLUSH: fn() = || stdout().flush().unwrap();
 
+fn has_cryptsetup() -> bool{
+    Path::new("/usr/bin/cryptsetup").exists()
+}
+
 fn elevated_execute(command: Vec<&str>) {
     let elevator;
     if Path::new("/usr/bin/sudo").exists() {
@@ -47,6 +51,11 @@ fn print_usage() {
 fn main() {
     let argv: Vec<String>  = args().collect();
     let argc = argv.len();
+
+    if !has_cryptsetup() {
+        eprintln!("Could not find cryptsetup in your /usr/bin, aborting..");
+        exit(1);
+    }
 
     match argc {
         3 => {
