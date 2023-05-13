@@ -138,6 +138,7 @@ fn main() {
                 if Path::new(label_mnt).exists() {
                     if !PathBuf::from(label_mnt).read_dir().unwrap().count() == 0 {
                         eprintln!("{} already exists and is not empty, closing with cryptsetup and aborting..", label_mnt);
+                        execute(vec!["cryptsetup", "close", label]);
                         exit(1);
                     }
                 } else {
