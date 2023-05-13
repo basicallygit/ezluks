@@ -3,6 +3,7 @@ use std::fs::create_dir_all;
 use std::io::{stdin, stdout, Write};
 use std::path::{Path, PathBuf};
 use std::process::{exit, Command, Stdio};
+use std::env;
 
 #[link(name = "c")]
 extern "C" {
@@ -11,8 +12,14 @@ extern "C" {
 
 const FLUSH: fn() = || stdout().flush().unwrap();
 
+#[inline]
 fn has_cryptsetup() -> bool {
     Path::new("/usr/bin/cryptsetup").exists()
+}
+
+#[inline]
+fn get_username() -> String {
+    env::var("USER").expect("Failed to get username from $USER")
 }
 
 fn execute(command: Vec<&str>) {
@@ -59,7 +66,7 @@ fn main() {
         3 => {
             if argv[1] == "close" {
                 let mapper_label: &str = &argv[2];
-                let mnt_path = format!("/mnt/{}", &mapper_label);
+                let mnt_path = format!("/run/media/{}/{}", get_username(), &mapper_label);
 
                 println!("Unmounting {}", mnt_path);
                 if !Path::new(&mnt_path).exists() {
@@ -99,8 +106,9 @@ fn main() {
                 input.clear();
 
                 stdin().read_line(&mut input).unwrap();
-                let label_mnt = &format!("/mnt/{}", input.trim());
+                let label_mnt = &format!("/run/media/{}/{}", get_username(), input.trim());
                 let mapper_path = &format!("/dev/mapper/{}", input.trim());
+                let label = &format!("{}", input.trim());
 
                 println!("Running 'cryptsetup open {} {}'", drive, input.trim());
                 execute(vec!["cryptsetup", "open", drive, input.trim()]);
@@ -126,10 +134,10 @@ fn main() {
                     }
                 }
 
-                println!("Mounting /dev/mapper/{} to {}", input.trim(), label_mnt);
+                println!("Mounting /dev/mapper/{} to {}", label, label_mnt);
                 if Path::new(label_mnt).exists() {
                     if !PathBuf::from(label_mnt).read_dir().unwrap().count() == 0 {
-                        eprintln!("{} already exists and is not empty.\nWhen you have sorted this, mount {} to {}\naborting..", label_mnt, mapper_path, label_mnt);
+                        eprintln!("{} already exists and is not empty, closing with cryptsetup and aborting..", label_mnt);
                         exit(1);
                     }
                 } else {
@@ -148,7 +156,7 @@ fn main() {
             if argv[1] == "open" {
                 let drive = &argv[2];
                 let label = &argv[3];
-                let mnt_path = &format!("/mnt/{}", label);
+                let mnt_path = &format!("/run/media/{}/{}", get_username(), label);
                 let mapper_label = &format!("/dev/mapper/{}", label);
                 if !Path::new(drive).exists() {
                     eprintln!("Could not find path '{}', aborting..", drive);
@@ -159,7 +167,8 @@ fn main() {
                 println!("Mounting {} to {}", mapper_label, mnt_path);
                 if Path::new(mnt_path).exists() {
                     if !PathBuf::from(mnt_path).read_dir().unwrap().count() == 0 {
-                        eprintln!("{} already exists and is not empty.\nWhen you have sorted this, mount {} to {}\nAborting..", mnt_path, mapper_label, mnt_path);
+                        eprintln!("{} already exists and is not empty, closing with cryptsetup and aborting..", mnt_path);
+                        execute(vec!["cryptsetup", "close", label]);
                         exit(1);
                     }
                 } else {
