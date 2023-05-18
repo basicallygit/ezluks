@@ -1,9 +1,10 @@
 use std::env::args;
-use std::fs::create_dir_all;
+use std::fs::{create_dir_all, set_permissions, Permissions};
 use std::io::{stdin, stdout, Write};
 use std::path::{Path, PathBuf};
 use std::process::{exit, Command, Stdio};
 use std::env;
+use std::os::unix::fs::PermissionsExt;
 
 #[link(name = "c")]
 extern "C" {
@@ -145,6 +146,11 @@ fn main() {
                     create_dir_all(label_mnt).unwrap();
                 }
                 execute(vec!["mount", mapper_path, label_mnt]);
+
+                // set to owner r/w/x only
+                println!("Setting permissions..");
+                set_permissions(label_mnt, Permissions::from_mode(0o700)).unwrap();
+
                 println!(
                     "Successfully formatted your new drive and mounted to {}!",
                     label_mnt
@@ -176,6 +182,11 @@ fn main() {
                     create_dir_all(mnt_path).unwrap();
                 }
                 execute(vec!["mount", mapper_label, mnt_path]);
+
+                // set to owner r/w/x only
+                println!("Setting permissions..");
+                set_permissions(mnt_path, Permissions::from_mode(0o700)).unwrap();
+
                 println!("Successfully decrypted and mounted drive to {}!", mnt_path);
             } else {
                 print_usage();
